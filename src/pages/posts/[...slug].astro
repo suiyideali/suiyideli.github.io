@@ -13,6 +13,7 @@ import ImageWrapper from "../../components/misc/ImageWrapper.astro";
 import PostMetadata from "../../components/PostMeta.astro";
 import { profileConfig, siteConfig } from "../../config";
 import { formatDateToYYYYMMDD } from "../../utils/date-utils";
+import Giscus from '../../components/Giscus.astro'; //导入 Giscus 组件
 
 export async function getStaticPaths() {
 	const blogEntries = await getSortedPosts();
@@ -132,5 +133,7 @@ const jsonLd = {
             </div>}
         </a>
     </div>
+<!-- ✅ 插入 Giscus 评论组件 -->
+<Giscus />
 
 </MainGridLayout>
