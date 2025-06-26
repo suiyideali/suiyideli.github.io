@@ -44,11 +44,11 @@ export const navBarConfig: NavBarConfig = {
     LinkPreset.Home,
     LinkPreset.Archive,
     LinkPreset.About,
-    // {
-    //   name: "GitHub",
-    //   url: "https://github.com/suiyideali", // Internal links should not include the base path, as it is automatically added
-    //   external: true, // Show an external link icon and will open in a new tab
-    // },
+    {
+      name: "站点统计",
+      url: "https://cloud.umami.is/share/UV8uMQQHAcqOT1Nz/cyberzone.cloud", // Internal links should not include the base path, as it is automatically added
+      external: true, // Show an external link icon and will open in a new tab
+    },
   ],
 };
 
