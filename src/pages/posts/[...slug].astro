@@ -83,7 +83,7 @@ const jsonLd = {
                     {entry.data.title}
                 </div>
             </div>
-
+            
             <!-- metadata -->
             <div class="onload-animation">
                 <PostMetadata
@@ -111,7 +111,6 @@ const jsonLd = {
 
         </div>
     </div>
-
     <div class="flex flex-col md:flex-row justify-between mb-4 gap-4 overflow-hidden w-full">
         <a href={entry.data.nextSlug ? getPostUrlBySlug(entry.data.nextSlug) : "#"}
            class:list={["w-full font-bold overflow-hidden active:scale-95", {"pointer-events-none": !entry.data.nextSlug}]}>
@@ -135,5 +134,4 @@ const jsonLd = {
     </div>
 <!-- ✅ 插入 Giscus 评论组件 -->
 <Giscus />
-
 </MainGridLayout>
