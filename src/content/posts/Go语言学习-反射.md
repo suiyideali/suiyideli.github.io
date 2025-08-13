@@ -631,4 +631,4 @@ func main() {
 
 # 参考
 
-1. [https://studygolang.com/pkgdoc](https://studygolang.com/pkgdoc)[**Golang标准库文档**]
+1. [Golang标准库文档](https://studygolang.com/pkgdoc)

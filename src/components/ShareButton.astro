@@ -1,0 +1,142 @@
+---
+// src/components/ShareButton.astro
+interface Props {
+  url?: string;
+  title?: string;
+}
+const { url, title }: Props = Astro.props;
+
+function toAbsolute(u?: string): string {
+  try {
+    if (!u) return Astro.url?.href ?? '';
+    return new URL(u, Astro.url).href;
+  } catch {
+    return u ?? '';
+  }
+}
+
+const absoluteUrl = toAbsolute(url);
+// 推荐语 + 标题
+const promo = '发现一篇好文，分享给你🎉';
+const shareText = title ? `${promo} ${title}` : promo;
+
+// 使用 twitter.com/intent/tweet，并分别传 text 与 url
+const intent = new URL('https://twitter.com/intent/tweet');
+intent.searchParams.set('text', shareText);
+if (absoluteUrl) intent.searchParams.set('url', absoluteUrl);
+const xShareUrl = intent.toString();
+---
+
+<div class="x-share-root">
+  <!-- 无 JS 兜底链接（隐藏以避免被内容拦截规则影响可视布局） -->
+  <a href={xShareUrl} target="_blank" rel="noopener noreferrer" class="x-action-link" aria-hidden="true" tabindex="-1">X</a>
+  <!-- 可见触发元素：button，避免广告/社交拦截按 href 规则隐藏 -->
+  <button type="button" class="x-action-btn" data-share-text={shareText} data-share-url={xShareUrl} aria-label="转发到 X">
+    <span class="share-icon-bg" aria-hidden="true"></span>
+  </button>
+</div>
+
+<script is:inline>
+  // 移动端优先系统分享，失败回退到意图链接（按钮触发，避开拦截规则）
+  const container = document.currentScript?.previousElementSibling;
+  if (container) {
+    const btn = container.querySelector('.x-action-btn');
+    if (btn) {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const shareText = btn.getAttribute('data-share-text') || document.title;
+        const href = btn.getAttribute('data-share-url') || '#';
+        if (navigator.share) {
+          navigator.share({
+            title: document.title,
+            text: shareText,
+            url: window.location.href,
+          }).catch(() => {
+            window.open(href, '_blank', 'noopener,noreferrer');
+          });
+        } else {
+          window.open(href, '_blank', 'noopener,noreferrer');
+        }
+      }, { passive: false });
+    }
+  }
+</script>
+
+<style>
+  .x-action-btn {
+    /* 1. 容器样式：固定尺寸、圆形、Flex居中 */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%; /* 圆形 */
+    
+    /* 2. 视觉样式 */
+    background: #111;
+    color: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.08),
+      0 1px 2px rgba(0, 0, 0, 0.06);
+    
+    /* 3. 交互与兼容性 */
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+    z-index: 10;
+    flex: 0 0 auto; /* 防止在 Safari 的 flex 布局中被收缩 */
+    transition:
+      background-color .2s ease,
+      transform .15s ease,
+      box-shadow .2s ease;
+    cursor: pointer;
+  }
+  .x-action-btn:hover {
+    background: #000;
+    transform: translateY(-1px);
+    box-shadow:
+      0 4px 14px rgba(0, 0, 0, 0.12),
+      0 2px 6px rgba(0, 0, 0, 0.10);
+  }
+  .x-action-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
+  .x-action-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
+  }
+
+  /* 4. 图标样式：使用 Base64 背景图，兼容性最强 */
+  .share-icon-bg {
+    width: 20px;
+    height: 20px;
+    display: block;
+    background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+PHBhdGggZD0iTTE4LjI0NCAyLjI1aDMuMzA4bC03LjIyNyA4LjI2IDguNTAyIDExLjI0SDE2LjE3bC01LjIxNC02LjgxN0w0Ljk5IDIxLjc1SDEuNjhsNy43My04LjIzNUwxLjI1NCAyLjI1SDguMDhsNC43MTMgNi4yMzF6bS0xLjE2MSAxNy41MmgxLjgzM0w3LjA4NCA0LjEyNkg1LjExN3oiLz48L3N2Zz4=");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+
+  /* 5. 容器与隐藏兜底链接 */
+  .x-share-root { display: inline-block; position: relative; }
+  .x-action-link {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0);
+    white-space: nowrap; border: 0;
+  }
+
+  /* 6. 深色模式 */
+  @media (prefers-color-scheme: dark) {
+    .x-action-btn {
+      background: #0b0b0b;
+      border-color: rgba(255,255,255,0.12);
+    }
+    .x-action-btn:hover {
+      background: #000;
+    }
+  }
+</style>
