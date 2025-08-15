@@ -222,7 +222,7 @@ uv add "mcp[cli]" # 安装mcp的SDK
 
 ![image.png](https://ob-typora.oss-cn-shanghai.aliyuncs.com/images/20250815191802253.png)
 
-1. 创建一个简单的 MCP 服务器，它提供计算工具和一些数据，这里依旧使用官方给出的demo，最后不要忘了在最后添加主程序入口点
+2. 创建一个简单的 MCP 服务器，它提供计算工具和一些数据，这里依旧使用官方给出的demo，最后不要忘了在最后添加主程序入口点
 
 ```bash
 """
@@ -268,7 +268,7 @@ if __name__ == "__main__":
 
 ```
 
-1. 使用stdio客户端测试mcp
+3. 使用stdio客户端测试mcp
 
 这里使用的客户端是Cherry Studio
 
@@ -276,11 +276,7 @@ if __name__ == "__main__":
 
 ![image.png](https://ob-typora.oss-cn-shanghai.aliyuncs.com/images/20250815191802168.png)
 
-分别在
-
-类型选择：stdio
-
-命令使用：uv
+分别在类型选择：stdio，命令使用：uv
 
 ![image.png](https://ob-typora.oss-cn-shanghai.aliyuncs.com/images/20250815191802180.png)
 
@@ -462,7 +458,7 @@ main.py
 
 ![image.png](https://ob-typora.oss-cn-shanghai.aliyuncs.com/images/20250815191803227.png)
 
-1. MCP服务器
+2. MCP服务器
 
 这里使用的是 [埃文IP定位MCP](https://www.modelscope.cn/mcp/servers/@ipfred/aiwen-mcp-server-geoip)，配置好相应的key即可
 
@@ -475,6 +471,8 @@ main.py
 测试一下效果
 
 ![image.png](https://ob-typora.oss-cn-shanghai.aliyuncs.com/images/20250815191803822.png)
+
+
 
 # 参考来源
 
