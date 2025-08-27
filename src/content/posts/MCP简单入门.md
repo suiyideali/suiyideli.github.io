@@ -1,7 +1,7 @@
 ---
 title: MCP简单入门
 published: 2025-08-15
-description: '本篇是大模型中基础的MCP入门'
+description: '本文详细介绍了模型上下文协议（MCP）的入门知识，内容涵盖MCP的核心概念、与传统API的对比、工作流程以及通过STDIO和SSE的快速上手指南，并附有实际操作截图和代码示例。'
 image: 'https://ob-typora.oss-cn-shanghai.aliyuncs.com/images/20250815191802201.png'
 tags: [大模型]
 category: 'LLM'

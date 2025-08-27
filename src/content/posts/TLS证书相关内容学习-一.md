@@ -3,7 +3,7 @@ title: TLS证书相关内容学习(一)
 published: 2025-06-23 17:15:47
 tags: [TLS SSL]
 category: 计算机网络
-description: 'TLS（Transport Layer Security）证书是互联网安全通信的基础，它确保了用户与网站之间的数据传输加密，防止中间人攻击。以下是关键概念及它们之间的关系'
+description: '本文详细介绍了TLS证书的基础知识，包括其作用、核心组成、不同类型的证书，以及证书颁发机构（CA）的角色。此外，还深入探讨了中间CA与根CA的关系、证书的签名与验证过程，并提供了使用OpenSSL和curl进行证书验证的命令行示例。最后，文章还分别详解了TLS 1.2和TLS 1.3的握手过程，并附有Wireshark抓包分析截图。'
 ---
 
 # 什么是TLS证书

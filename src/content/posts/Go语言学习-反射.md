@@ -1,7 +1,7 @@
 ---
 title: Go语言学习-反射
 published: 2025-07-20
-description: 'Go 语言中的反射（reflection）由标准库 reflect 包提供，它允许程序在 运行时 动态地检查、修改和操作变量的类型和值。'
+description: '本文介绍了Go语言中反射的入门知识，包括反射的基本概念、常用函数以及如何通过反射操作变量的类型和值，并附有代码示例和练习。'
 image: ''
 tags: [Golang]
 category: '编程'
