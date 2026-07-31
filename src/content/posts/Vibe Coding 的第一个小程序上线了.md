@@ -9,8 +9,6 @@ draft: false
 lang: 'zh'
 ---
 
-![秒题鸭上线](https://ob-typora.oss-cn-shanghai.aliyuncs.com/images20260731131755725.png)
-
 故事是这样的。
 
 我一个搞网络安全的，从业这些年，从没想过自己会有一天真去开发一个小程序，还是全线 AI 开发，基于腾讯云 CloudBase 撸出来的一个刷题小程序。
