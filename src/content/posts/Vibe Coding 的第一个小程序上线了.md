@@ -3,7 +3,7 @@ title: Vibe Coding 的第一个小程序上线了
 published: 2026-07-31
 description: '本文记录了我作为网络安全工程师，首次通过 Vibe Coding 全程由 AI 开发并上线一款微信小程序「秒题鸭」的经历。这是一款基于腾讯云 CloudBase 打造的多证书备考刷题小程序，首发聚焦 CISSP。文章分享了我做它的初衷、为自己定制的「做题三原则」备考方法论、内置免费 AI 解析的设计思路，以及选择微信 AI 小程序成长计划与腾讯产品生态的原因，并附有小程序功能截图。'
 image: 'https://ob-typora.oss-cn-shanghai.aliyuncs.com/images20260731131755725.png'
-tags: [Vibe Coding 小程序 CloudBase CISSP]
+tags: [Vibe Coding]
 category: 'LLM'
 draft: false
 lang: 'zh'
