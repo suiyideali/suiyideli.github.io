@@ -19,6 +19,17 @@ const postsCollection = defineCollection({
 		nextSlug: z.string().default(""),
 	}),
 });
+
+const skillsCollection = defineCollection({
+	schema: z.object({
+		title: z.string(),
+		description: z.string().optional().default(""),
+		tags: z.array(z.string()).optional().default([]),
+		source: z.string().optional().default(""),
+	}),
+});
+
 export const collections = {
 	posts: postsCollection,
+	skills: skillsCollection,
 };
