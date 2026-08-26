@@ -70,7 +70,7 @@ const installCmd = `mkdir -p ~/.dsh/skills/${entry.slug} && curl -fsSL ${repoFil
                         <option value="dsh" selected>DSH</option>
                         <option value="workbuddy">WorkBuddy</option>
                     </select>
-                    <button type="button" id="copy-install-prompt" data-site-url={siteFileUrl} data-slug={entry.slug} data-title={entry.data.title} data-raw-url={repoFileUrl}
+                    <button type="button" id="copy-install-prompt" data-slug={entry.slug} data-raw-url={repoFileUrl}
                             class="inline-flex items-center rounded-lg bg-[var(--btn-regular-bg)] px-4 py-2 text-sm font-medium text-black/75 dark:text-white/75 hover:text-[var(--primary)] transition">复制安装提示词</button>
                     <button type="button" id="copy-skill-file" data-site-url={siteFileUrl}
                             class="inline-flex items-center rounded-lg bg-[var(--btn-regular-bg)] px-4 py-2 text-sm font-medium text-black/75 dark:text-white/75 hover:text-[var(--primary)] transition">复制 SKILL.md</button>
@@ -226,54 +226,44 @@ function initSkillGet() {
 		}
 	};
 
-	// ---- 各目标环境的安装路径模板（<slug> 会被替换） ----
-	const ENV_LABELS = {
-		"claude-code": "Claude Code",
-		codex: "Codex",
-		dsh: "DSH",
-		workbuddy: "WorkBuddy",
-	};
-	const ENV_PATHS = {
-		"claude-code": "~/.claude/skills/<slug>/SKILL.md（项目级：.claude/skills/<slug>/SKILL.md）",
-		codex: "~/.codex/skills/<slug>/SKILL.md（项目级：.codex/skills/<slug>/SKILL.md）",
-		dsh: "~/.dsh/skills/<slug>/SKILL.md",
-		workbuddy: "~/.workbuddy/skills/<slug>/SKILL.md",
+	// ---- 各目标环境的 skills 目录（提示词第 1 步的安装位置） ----
+	const ENV_DIRS = {
+		"claude-code": ".claude/skills/",
+		codex: ".codex/skills/",
+		dsh: "~/.dsh/skills/",
+		workbuddy: "~/.workbuddy/skills/",
 	};
 
-	const buildPrompt = async () => {
+	const buildPrompt = () => {
 		const select = document.getElementById("env-select");
 		const env = select ? select.value : "dsh";
 		const slug = promptBtn.getAttribute("data-slug") || "";
-		const title = promptBtn.getAttribute("data-title") || "";
 		const rawUrl = promptBtn.getAttribute("data-raw-url") || "";
-		const path = (ENV_PATHS[env] || ENV_PATHS.dsh).replaceAll("<slug>", slug);
-		const mainPath = path.split("（")[0];
-		const dir = mainPath.replace(/\/[^/]+$/, "");
-		const resp = await fetch(promptBtn.getAttribute("data-site-url") || "");
-		const body = await resp.text();
+		const dir = ENV_DIRS[env] || ENV_DIRS.dsh;
+		const intro = dir.startsWith(".")
+			? `请帮我将以下 skill 安装到当前项目的 ${dir} 目录下：`
+			: `请帮我将以下 skill 安装到 ${dir} 目录下：`;
 
 		return [
-			`请安装这个 AI 技能（SKILL）：${title}`,
+			intro,
 			``,
-			`目标环境：${ENV_LABELS[env] || env}`,
-			`安装位置：${path}`,
+			slug,
 			``,
-			`方式一（推荐）：将下面的 SKILL.md 完整内容保存到上述位置（目录不存在请创建），即可在后续对话中启用「${title}」。`,
+			`对应的 SKILL.md 文件链接如下：`,
+			`- ${slug}: ${rawUrl}`,
 			``,
-			`方式二（联网拉取）：直接运行以下命令：`,
-			`mkdir -p ${dir} && curl -fsSL ${rawUrl} -o ${mainPath}`,
-			``,
-			`———— SKILL.md 完整内容 ————`,
-			body,
-			`———— 内容结束 ————`,
-			``,
-			`安装完成后，请确认你已理解并能按该技能的规范行事。`,
+			`请完成以下操作：`,
+			`1. 在 ${dir} 目录下创建对应的 skill 文件夹`,
+			`2. 下载上述链接中的 SKILL.md 文件内容`,
+			`3. 保存到对应的 skill 目录中`,
+			`4. 确认安装完成后告诉我已安装的 skill 列表`,
+			`5. 确保 SKILL.md 里面的所有相对路径也基于当前文件链接被解析为 https 链接，并且递归地完成下载`,
 		].join("\n");
 	};
 
 	promptBtn.addEventListener("click", async () => {
 		try {
-			await copyText(await buildPrompt(), promptBtn);
+			await copyText(buildPrompt(), promptBtn);
 		} catch (e) {
 			feedback(promptBtn, false);
 		}
