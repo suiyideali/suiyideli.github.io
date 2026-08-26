@@ -53,7 +53,7 @@ const description = "发现并浏览我收集的 AI Skills";
                         <p class="text-sm text-black/60 dark:text-white/60 line-clamp-2 flex-1 leading-relaxed">{skill.data.description}</p>
                         <div class="flex flex-wrap gap-1.5 items-center">
                             {skill.data.tags.map((tag) => (
-                                <span class="text-xs px-2 py-0.5 rounded-md bg-[var(--btn-regular-bg)] text-black/50 dark:text-white/50">{tag}</span>
+                                <span class="skill-tag text-xs px-2 py-0.5 rounded-md bg-[var(--btn-regular-bg)] text-black/50 dark:text-white/50 hover:text-[var(--primary)] cursor-pointer transition" title="点击搜索该标签">{tag}</span>
                             ))}
                             <span class="text-xs font-medium text-[var(--primary)]/80 ml-auto">查看详情 →</span>
                         </div>
@@ -102,6 +102,18 @@ function initCardCopy() {
 	list.dataset.copyBound = "1";
 
 	list.addEventListener("click", async (e) => {
+		const tag = e.target.closest(".skill-tag");
+		if (tag) {
+			e.preventDefault();
+			e.stopPropagation();
+			const input = document.getElementById("skill-search");
+			if (input) {
+				input.value = tag.textContent.trim();
+				input.dispatchEvent(new Event("input"));
+			}
+			return;
+		}
+
 		const btn = e.target.closest(".copy-card");
 		if (!btn) return;
 		e.preventDefault();

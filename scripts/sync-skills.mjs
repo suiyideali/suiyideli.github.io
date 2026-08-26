@@ -34,6 +34,13 @@ const EXCLUDE_FAMILIES = new Set([]);
 /** 仅保留白名单：非空时只同步这些技能，其余全部跳过 */
 const KEEP_ONLY = new Set(["fact-check", "clarify-first", "first-principles"]);
 
+/** 语义标签映射：slug -> 展示给访问者的分类标签（有映射时优先于来源/家族标签） */
+const SEMANTIC_TAGS = {
+	"clarify-first": ["需求澄清", "方法论"],
+	"fact-check": ["事实核查", "方法论", "联网核实"],
+	"first-principles": ["第一性原理", "思维模型", "方法论"],
+};
+
 /** 家族标签：给技能打上可读分组 */
 function familyTag(name) {
 	if (name.startsWith("lark-")) return "lark";
@@ -125,7 +132,10 @@ for (const home of SKILL_HOMES) {
 
 		if (collected.has(slug)) continue; // 去重
 
-		const tags = [homeLabel, familyTag(skillName)].filter(Boolean);
+		const tags =
+			SEMANTIC_TAGS[slug] && SEMANTIC_TAGS[slug].length > 0
+				? SEMANTIC_TAGS[slug]
+				: [homeLabel, familyTag(skillName)].filter(Boolean);
 		collected.set(slug, { title, description, tags, source: `${homeLabel}/${skillName}`, body, skillMd });
 	}
 }
