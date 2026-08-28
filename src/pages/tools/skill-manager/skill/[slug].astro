@@ -18,7 +18,8 @@ const { Content } = await render(entry);
 const description = entry.data.description || entry.data.title;
 
 // GitHub 仓库信息：技能原始文件随仓库发布在 public/skills/<slug>/SKILL.md
-const GITHUB_RAW_BASE = "https://raw.githubusercontent.com/suiyideali/suiyideli.github.io/main";
+const GITHUB_RAW_BASE =
+	"https://raw.githubusercontent.com/suiyideali/suiyideli.github.io/main";
 const repoFileUrl = `${GITHUB_RAW_BASE}/public/skills/${entry.slug}/SKILL.md`;
 const repoDirUrl = `https://github.com/suiyideali/suiyideli.github.io/tree/main/public/skills/${entry.slug}`;
 const siteFileUrl = url(`/skills/${entry.slug}/SKILL.md`);

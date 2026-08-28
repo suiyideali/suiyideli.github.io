@@ -1,29 +1,29 @@
 ---
 // src/components/ShareButton.astro
 interface Props {
-  url?: string;
-  title?: string;
+	url?: string;
+	title?: string;
 }
 const { url, title }: Props = Astro.props;
 
 function toAbsolute(u?: string): string {
-  try {
-    if (!u) return Astro.url?.href ?? '';
-    return new URL(u, Astro.url).href;
-  } catch {
-    return u ?? '';
-  }
+	try {
+		if (!u) return Astro.url?.href ?? "";
+		return new URL(u, Astro.url).href;
+	} catch {
+		return u ?? "";
+	}
 }
 
 const absoluteUrl = toAbsolute(url);
 // 推荐语 + 标题
-const promo = '发现一篇好文，分享给你🎉';
+const promo = "发现一篇好文，分享给你🎉";
 const shareText = title ? `${promo} ${title}` : promo;
 
 // 使用 twitter.com/intent/tweet，并分别传 text 与 url
-const intent = new URL('https://twitter.com/intent/tweet');
-intent.searchParams.set('text', shareText);
-if (absoluteUrl) intent.searchParams.set('url', absoluteUrl);
+const intent = new URL("https://twitter.com/intent/tweet");
+intent.searchParams.set("text", shareText);
+if (absoluteUrl) intent.searchParams.set("url", absoluteUrl);
 const xShareUrl = intent.toString();
 ---
 
