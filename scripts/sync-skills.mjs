@@ -32,13 +32,14 @@ const EXCLUDE = new Set(["_gstack-command"]);
 const EXCLUDE_FAMILIES = new Set([]);
 
 /** 仅保留白名单：非空时只同步这些技能，其余全部跳过 */
-const KEEP_ONLY = new Set(["fact-check", "clarify-first", "first-principles"]);
+const KEEP_ONLY = new Set(["fact-check", "clarify-first", "first-principles", "issue-forms-kit"]);
 
 /** 语义标签映射：slug -> 展示给访问者的分类标签（有映射时优先于来源/家族标签） */
 const SEMANTIC_TAGS = {
 	"clarify-first": ["需求澄清", "方法论"],
 	"fact-check": ["事实核查", "方法论", "联网核实"],
 	"first-principles": ["第一性原理", "思维模型", "方法论"],
+	"issue-forms-kit": ["GitHub 协作", "工程规范", "自动化"],
 };
 
 /** 家族标签：给技能打上可读分组 */
