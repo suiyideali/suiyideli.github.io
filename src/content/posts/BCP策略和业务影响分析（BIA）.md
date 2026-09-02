@@ -3,7 +3,7 @@ title: BCP策略和业务影响分析（BIA）
 published: 2026-08-02
 description: '本文梳理了业务连续性计划（BCP）中的核心——业务影响分析（BIA），重点讲解如何确定业务所能容忍的最大允许中断时间（MTD）。文章系统介绍了MTD、RTO、WRT、RPO、DRP、BRP、SDO等关键概念，并结合实际场景说明各指标如何串联成一个完整的恢复故事，特别解读了服务交付目标（SDO）在降级运行阶段的实际意义。最后介绍了灾难恢复后将运营从备用站点迁回主站点的回切（Failback）流程，并配以完整时间轴图示，帮助读者建立BCP全流程的直观认知。'
 image: 'https://ob-typora.oss-cn-shanghai.aliyuncs.com/images20260802131457485.png'
-tags: [CISSP]
+tags: [CISSP, BCP, 容灾]
 category: 企业安全建设
 draft: false 
 lang: 'zh'

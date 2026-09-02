@@ -3,7 +3,7 @@ title: 公钥基础设施PKI（Public Key Infrastructure）
 published: 2026-08-09
 description: '本文以CISSP备考视角系统讲解公钥基础设施（PKI）：从整体架构（信任根、签发层、RA、证书库、终端实体、密钥管理）到证书签发与验证的全生命周期，梳理浏览器-PKI-服务器三方关系与信任链的路径验证，并对比CRL与OCSP的取舍。最后通过常见陷阱解析和自测题帮助读者巩固考点。'
 image: 'https://ob-typora.oss-cn-shanghai.aliyuncs.com/images20260809170318649.png'
-tags: [PKI 证书]
+tags: [PKI, 证书, CISSP]
 category: 计算机网络
 draft: false 
 lang: 'zh'
