@@ -1,0 +1,258 @@
+---
+// 全站性交互（技能市场列表 / 技能详情）。
+//
+// 为什么集中放在这里，而不是写在各自页面里：
+// swup 做 SPA 导航时只替换 main / #toc 容器，并且不会执行新内容里的脚本。
+// 页面末尾（容器之外）的内联脚本因此只在“整页加载”时执行一次，
+// 从站内点进来时「预览 / 代码」切换、复制按钮、搜索筛选会全部失效
+// （直接打开或刷新页面却正常，很容易误判成浏览器差异）。
+// 这里用 document 级事件委托注册一次，与进入页面的方式无关。
+---
+
+<script>
+const ENV_DIRS: Record<string, string> = {
+	"claude-code": ".claude/skills/",
+	codex: ".codex/skills/",
+	dsh: "~/.dsh/skills/",
+	workbuddy: "~/.workbuddy/skills/",
+};
+
+// 「预览 / 代码」分段滑块的激活与未激活样式
+const TAB_ACTIVE_CLASSES = [
+	"bg-[var(--card-bg)]",
+	"shadow-sm",
+	"text-black/85",
+	"dark:text-white/85",
+];
+const TAB_IDLE_CLASSES = [
+	"bg-transparent",
+	"text-black/55",
+	"dark:text-white/55",
+];
+
+const elementOf = (target: EventTarget | null): Element | null =>
+	target instanceof Element ? target : null;
+
+/* ---------------- 复制 ---------------- */
+
+const writeClipboard = async (text: string): Promise<boolean> => {
+	try {
+		await navigator.clipboard.writeText(text);
+		return true;
+	} catch {
+		// 回退方案：Safari 在部分上下文里 navigator.clipboard 不可用
+		const ta = document.createElement("textarea");
+		ta.value = text;
+		ta.style.position = "fixed";
+		ta.style.opacity = "0";
+		document.body.appendChild(ta);
+		ta.select();
+		let ok = false;
+		try {
+			ok = document.execCommand("copy");
+		} catch {
+			ok = false;
+		}
+		ta.remove();
+		return ok;
+	}
+};
+
+// 按钮文案反馈；重复点击时沿用最初的文案，避免把「已复制 ✓」存成原文案
+const textFeedback = (btn: HTMLElement, ok: boolean) => {
+	if (btn.dataset.originalText === undefined) {
+		btn.dataset.originalText = btn.textContent ?? "";
+	}
+	btn.textContent = ok ? "已复制 ✓" : "复制失败";
+	btn.classList.add("text-[var(--primary)]");
+	window.setTimeout(() => {
+		btn.textContent = btn.dataset.originalText ?? "";
+		btn.classList.remove("text-[var(--primary)]");
+	}, 2000);
+};
+
+const fetchText = async (url: string): Promise<string | null> => {
+	if (url === "") return null;
+	try {
+		const resp = await fetch(url);
+		if (!resp.ok) return null;
+		return await resp.text();
+	} catch {
+		return null;
+	}
+};
+
+const copyInstallPrompt = async (btn: HTMLElement) => {
+	const select = document.getElementById("env-select") as HTMLSelectElement | null;
+	const env = select?.value ?? "dsh";
+	const dir = ENV_DIRS[env] ?? ENV_DIRS.dsh;
+	const slug = btn.dataset.slug ?? "";
+	const rawUrl = btn.dataset.rawUrl ?? "";
+	const intro = dir.startsWith(".")
+		? `请帮我将以下 skill 安装到当前项目的 ${dir} 目录下：`
+		: `请帮我将以下 skill 安装到 ${dir} 目录下：`;
+
+	const prompt = [
+		intro,
+		``,
+		slug,
+		``,
+		`对应的 SKILL.md 文件链接如下：`,
+		`- ${slug}: ${rawUrl}`,
+		``,
+		`请完成以下操作：`,
+		`1. 在 ${dir} 目录下创建对应的 skill 文件夹`,
+		`2. 下载上述链接中的 SKILL.md 文件内容`,
+		`3. 保存到对应的 skill 目录中`,
+		`4. 确认安装完成后告诉我已安装的 skill 列表`,
+		`5. 确保 SKILL.md 里面的所有相对路径也基于当前文件链接被解析为 https 链接，并且递归地完成下载`,
+	].join("\n");
+
+	textFeedback(btn, await writeClipboard(prompt));
+};
+
+const copySkillFile = async (btn: HTMLElement) => {
+	const text = await fetchText(btn.dataset.siteUrl ?? "");
+	if (text === null) {
+		textFeedback(btn, false);
+		return;
+	}
+	textFeedback(btn, await writeClipboard(text));
+};
+
+// 列表页卡片上的复制按钮：成功时切换对勾图标
+const copySkillCard = async (btn: HTMLElement) => {
+	const text = await fetchText(btn.dataset.url ?? "");
+	if (text === null) return;
+	if (!(await writeClipboard(text))) return;
+	const ok = btn.querySelector(".copy-ok");
+	if (!ok) return;
+	ok.classList.remove("hidden");
+	window.setTimeout(() => ok.classList.add("hidden"), 2000);
+};
+
+/* ---------------- 预览 / 代码 / 元信息 ---------------- */
+
+const skillTabButtons = () =>
+	Array.from(
+		document.querySelectorAll<HTMLElement>("#skill-tabs [data-tab-target]"),
+	);
+const skillPanels = () =>
+	Array.from(document.querySelectorAll<HTMLElement>("[data-tab-panel]"));
+
+// name 为 null 表示三个分区都不选中（用于「查看元信息」）
+const paintSkillTab = (name: string | null) => {
+	for (const btn of skillTabButtons()) {
+		const active = name !== null && btn.dataset.tabTarget === name;
+		for (const cls of TAB_ACTIVE_CLASSES) btn.classList.toggle(cls, active);
+		for (const cls of TAB_IDLE_CLASSES) btn.classList.toggle(cls, !active);
+		btn.setAttribute("aria-selected", active ? "true" : "false");
+	}
+};
+
+const showSkillPanel = (name: string) => {
+	for (const panel of skillPanels()) {
+		panel.classList.toggle("hidden", panel.dataset.tabPanel !== name);
+	}
+	paintSkillTab(name);
+	document.getElementById("skill-meta-panel")?.classList.add("hidden");
+};
+
+const toggleSkillMeta = () => {
+	const meta = document.getElementById("skill-meta-panel");
+	if (!meta) return;
+	const willShow = meta.classList.contains("hidden");
+	for (const panel of skillPanels()) panel.classList.add("hidden");
+	paintSkillTab(null);
+	meta.classList.toggle("hidden", !willShow);
+};
+
+/* ---------------- 列表页搜索 ---------------- */
+
+const filterSkillCards = () => {
+	const input = document.getElementById("skill-search") as HTMLInputElement | null;
+	const list = document.getElementById("skill-list");
+	if (!input || !list) return;
+
+	const keyword = input.value.trim().toLowerCase();
+	const cards = Array.from(list.querySelectorAll<HTMLElement>("[data-search]"));
+	let shown = 0;
+	for (const card of cards) {
+		const match =
+			keyword === "" ||
+			(card.getAttribute("data-search") ?? "").includes(keyword);
+		card.classList.toggle("hidden", !match);
+		if (match) shown += 1;
+	}
+
+	const count = document.getElementById("skill-count");
+	if (count) {
+		count.textContent =
+			keyword === ""
+				? `共 ${cards.length} 个技能`
+				: `共 ${cards.length} 个技能，匹配 ${shown} 个`;
+	}
+};
+
+/* ---------------- 注册（全站只注册一次） ---------------- */
+
+const globalWindow = window as Window & { __skillUiBound?: boolean };
+
+if (!globalWindow.__skillUiBound) {
+	globalWindow.__skillUiBound = true;
+
+	document.addEventListener("click", (event) => {
+		const target = elementOf(event.target);
+		if (!target) return;
+
+		const tab = target.closest<HTMLElement>("#skill-tabs [data-tab-target]");
+		if (tab?.dataset.tabTarget) {
+			showSkillPanel(tab.dataset.tabTarget);
+			return;
+		}
+
+		if (target.closest("#skill-meta-btn")) {
+			toggleSkillMeta();
+			return;
+		}
+
+		const promptBtn = target.closest<HTMLElement>("#copy-install-prompt");
+		if (promptBtn) {
+			void copyInstallPrompt(promptBtn);
+			return;
+		}
+
+		const fileBtn = target.closest<HTMLElement>("#copy-skill-file");
+		if (fileBtn) {
+			void copySkillFile(fileBtn);
+			return;
+		}
+
+		// 下面两个在列表页卡片内部，而卡片本身是 <a>，需要阻止跳转
+		const tag = target.closest<HTMLElement>(".skill-tag");
+		if (tag) {
+			event.preventDefault();
+			event.stopPropagation();
+			const input = document.getElementById(
+				"skill-search",
+			) as HTMLInputElement | null;
+			if (input) {
+				input.value = tag.textContent?.trim() ?? "";
+				filterSkillCards();
+			}
+			return;
+		}
+
+		const cardCopy = target.closest<HTMLElement>(".copy-card");
+		if (cardCopy) {
+			event.preventDefault();
+			event.stopPropagation();
+			void copySkillCard(cardCopy);
+		}
+	});
+
+	document.addEventListener("input", (event) => {
+		if (elementOf(event.target)?.id === "skill-search") filterSkillCards();
+	});
+}
+</script>

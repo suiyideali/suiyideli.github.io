@@ -25,6 +25,7 @@ const description = "发现并浏览我收集的 AI Skills";
             </p>
 
             <!-- search -->
+            <!-- 交互逻辑在 GlobalInteractions.astro：事件委托，SPA 导航后依然有效 -->
             <div class="relative max-w-md mb-4">
                 <input id="skill-search" type="search" placeholder="搜索技能名称 / 描述 / 标签…" autocomplete="off"
                        class="w-full h-11 pl-11 pr-4 rounded-xl text-sm font-medium bg-[var(--btn-regular-bg)] text-black/80 dark:text-white/80 placeholder:text-black/30 dark:placeholder:text-white/30 outline-none focus:ring-2 ring-[var(--primary)]/30 transition" />
@@ -63,75 +64,3 @@ const description = "发现并浏览我收集的 AI Skills";
         </div>
     </div>
 </MainGridLayout>
-
-<script is:inline>
-function initSkillSearch() {
-	const input = document.getElementById("skill-search");
-	const list = document.getElementById("skill-list");
-	if (!input || !list || input.dataset.bound) return;
-	input.dataset.bound = "1";
-
-	const cards = Array.from(list.querySelectorAll("[data-search]"));
-	const countEl = document.getElementById("skill-count");
-
-	const update = () => {
-		const kw = input.value.trim().toLowerCase();
-		let shown = 0;
-		for (const card of cards) {
-			const match = !kw || (card.getAttribute("data-search") || "").includes(kw);
-			card.classList.toggle("hidden", !match);
-			if (match) shown++;
-		}
-		if (countEl) {
-			countEl.textContent = kw
-				? `共 ${cards.length} 个技能，匹配 ${shown} 个`
-				: `共 ${cards.length} 个技能`;
-		}
-	};
-
-	input.addEventListener("input", update);
-	update();
-}
-document.addEventListener("DOMContentLoaded", initSkillSearch);
-document.addEventListener("swup:content-replaced", initSkillSearch);
-initSkillSearch();
-
-function initCardCopy() {
-	const list = document.getElementById("skill-list");
-	if (!list || list.dataset.copyBound) return;
-	list.dataset.copyBound = "1";
-
-	list.addEventListener("click", async (e) => {
-		const tag = e.target.closest(".skill-tag");
-		if (tag) {
-			e.preventDefault();
-			e.stopPropagation();
-			const input = document.getElementById("skill-search");
-			if (input) {
-				input.value = tag.textContent.trim();
-				input.dispatchEvent(new Event("input"));
-			}
-			return;
-		}
-
-		const btn = e.target.closest(".copy-card");
-		if (!btn) return;
-		e.preventDefault();
-		e.stopPropagation();
-
-		try {
-			const resp = await fetch(btn.getAttribute("data-url") || "");
-			const text = await resp.text();
-			await navigator.clipboard.writeText(text);
-			const ok = btn.querySelector(".copy-ok");
-			if (ok) ok.classList.remove("hidden");
-			setTimeout(() => ok && ok.classList.add("hidden"), 2000);
-		} catch (err) {
-			// 复制失败：静默，用户仍可进入详情页复制
-		}
-	});
-}
-document.addEventListener("DOMContentLoaded", initCardCopy);
-document.addEventListener("swup:content-replaced", initCardCopy);
-initCardCopy();
-</script>

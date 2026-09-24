@@ -92,11 +92,12 @@ const installCmd = `mkdir -p ~/.dsh/skills/${entry.slug} && curl -fsSL ${repoFil
                 </h2>
 
                 <!-- 操作区：查看元信息按钮 + 预览/代码 分段滑块 -->
+                <!-- 交互逻辑在 GlobalInteractions.astro：事件委托，SPA 导航后依然有效 -->
                 <div class="flex flex-wrap items-center gap-3 mb-4">
                     <button type="button" id="skill-meta-btn" class="text-[13px] font-medium text-black/50 dark:text-white/50 hover:text-[var(--primary)] transition">查看元信息</button>
                     <div id="skill-tabs" role="tablist" class="inline-flex items-center rounded-lg bg-[var(--btn-regular-bg)] p-[2px] gap-[2px]">
-                        <button type="button" role="tab" data-tab-target="preview" class="rounded-md px-3 py-1.5 text-[13px] font-medium transition-all duration-150 bg-[var(--card-bg)] shadow-sm text-black/85 dark:text-white/85">预览</button>
-                        <button type="button" role="tab" data-tab-target="code" class="rounded-md px-3 py-1.5 text-[13px] font-medium transition-all duration-150 bg-transparent text-black/55 dark:text-white/55 hover:text-black/80 dark:hover:text-white/80">代码</button>
+                        <button type="button" role="tab" aria-selected="true" data-tab-target="preview" class="rounded-md px-3 py-1.5 text-[13px] font-medium transition-all duration-150 bg-[var(--card-bg)] shadow-sm text-black/85 dark:text-white/85">预览</button>
+                        <button type="button" role="tab" aria-selected="false" data-tab-target="code" class="rounded-md px-3 py-1.5 text-[13px] font-medium transition-all duration-150 bg-transparent text-black/55 dark:text-white/55 hover:text-black/80 dark:hover:text-white/80">代码</button>
                     </div>
                 </div>
 
@@ -137,154 +138,3 @@ const installCmd = `mkdir -p ~/.dsh/skills/${entry.slug} && curl -fsSL ${repoFil
         </div>
     </div>
 </MainGridLayout>
-
-<script is:inline>
-function initSkillTabs() {
-	const tabs = document.getElementById("skill-tabs");
-	if (!tabs || tabs.dataset.bound) return;
-	tabs.dataset.bound = "1";
-
-	const btns = Array.from(tabs.querySelectorAll("[data-tab-target]"));
-	const panels = Array.from(document.querySelectorAll("[data-tab-panel]"));
-	const metaBtn = document.getElementById("skill-meta-btn");
-	const metaPanel = document.getElementById("skill-meta-panel");
-
-	const clearActive = () => {
-		for (const b of btns) {
-			b.classList.remove("bg-[var(--card-bg)]", "shadow-sm", "text-black/85", "dark:text-white/85");
-			b.classList.add("bg-transparent", "text-black/55", "dark:text-white/55");
-		}
-	};
-
-	const showPanel = (name) => {
-		for (const p of panels) p.classList.toggle("hidden", p.dataset.tabPanel !== name);
-		for (const b of btns) {
-			const active = b.dataset.tabTarget === name;
-			b.classList.toggle("bg-[var(--card-bg)]", active);
-			b.classList.toggle("shadow-sm", active);
-			b.classList.toggle("text-black/85", active);
-			b.classList.toggle("dark:text-white/85", active);
-			b.classList.toggle("bg-transparent", !active);
-			b.classList.toggle("text-black/55", !active);
-			b.classList.toggle("dark:text-white/55", !active);
-		}
-		if (metaPanel) metaPanel.classList.add("hidden");
-	};
-
-	for (const b of btns) {
-		b.addEventListener("click", () => showPanel(b.dataset.tabTarget));
-	}
-
-	if (metaBtn && metaPanel) {
-		metaBtn.addEventListener("click", () => {
-			const willShow = metaPanel.classList.contains("hidden");
-			for (const p of panels) p.classList.add("hidden");
-			clearActive();
-			metaPanel.classList.toggle("hidden", !willShow);
-		});
-	}
-
-	showPanel("preview");
-}
-document.addEventListener("DOMContentLoaded", initSkillTabs);
-document.addEventListener("swup:content-replaced", initSkillTabs);
-initSkillTabs();
-
-function initSkillGet() {
-	const promptBtn = document.getElementById("copy-install-prompt");
-	const fileBtn = document.getElementById("copy-skill-file");
-	if (!promptBtn || promptBtn.dataset.bound) return;
-	promptBtn.dataset.bound = "1";
-
-	const feedback = (btn, ok) => {
-		const orig = btn.textContent;
-		btn.textContent = ok ? "已复制 ✓" : "复制失败";
-		btn.classList.add("text-[var(--primary)]");
-		setTimeout(() => {
-			btn.textContent = orig;
-			btn.classList.remove("text-[var(--primary)]");
-		}, 2000);
-	};
-
-	const copyText = async (text, btn) => {
-		try {
-			await navigator.clipboard.writeText(text);
-			feedback(btn, true);
-		} catch (e) {
-			const ta = document.createElement("textarea");
-			ta.value = text;
-			ta.style.position = "fixed";
-			ta.style.opacity = "0";
-			document.body.appendChild(ta);
-			ta.select();
-			try {
-				document.execCommand("copy");
-				feedback(btn, true);
-			} catch (e2) {
-				feedback(btn, false);
-			}
-			ta.remove();
-		}
-	};
-
-	// ---- 各目标环境的 skills 目录（提示词第 1 步的安装位置） ----
-	const ENV_DIRS = {
-		"claude-code": ".claude/skills/",
-		codex: ".codex/skills/",
-		dsh: "~/.dsh/skills/",
-		workbuddy: "~/.workbuddy/skills/",
-	};
-
-	const buildPrompt = () => {
-		const select = document.getElementById("env-select");
-		const env = select ? select.value : "dsh";
-		const slug = promptBtn.getAttribute("data-slug") || "";
-		const rawUrl = promptBtn.getAttribute("data-raw-url") || "";
-		const dir = ENV_DIRS[env] || ENV_DIRS.dsh;
-		const intro = dir.startsWith(".")
-			? `请帮我将以下 skill 安装到当前项目的 ${dir} 目录下：`
-			: `请帮我将以下 skill 安装到 ${dir} 目录下：`;
-
-		return [
-			intro,
-			``,
-			slug,
-			``,
-			`对应的 SKILL.md 文件链接如下：`,
-			`- ${slug}: ${rawUrl}`,
-			``,
-			`请完成以下操作：`,
-			`1. 在 ${dir} 目录下创建对应的 skill 文件夹`,
-			`2. 下载上述链接中的 SKILL.md 文件内容`,
-			`3. 保存到对应的 skill 目录中`,
-			`4. 确认安装完成后告诉我已安装的 skill 列表`,
-			`5. 确保 SKILL.md 里面的所有相对路径也基于当前文件链接被解析为 https 链接，并且递归地完成下载`,
-		].join("\n");
-	};
-
-	promptBtn.addEventListener("click", async () => {
-		try {
-			await copyText(buildPrompt(), promptBtn);
-		} catch (e) {
-			feedback(promptBtn, false);
-		}
-	});
-
-	if (fileBtn) {
-		fileBtn.addEventListener("click", async () => {
-			try {
-				const resp = await fetch(fileBtn.getAttribute("data-site-url") || "");
-				const text = await resp.text();
-				await copyText(text, fileBtn);
-			} catch (e) {
-				feedback(fileBtn, false);
-			}
-		});
-	}
-
-	setMode("cli");
-}
-document.addEventListener("DOMContentLoaded", initSkillGet);
-document.addEventListener("swup:content-replaced", initSkillGet);
-initSkillGet();
-</script>
