@@ -5,16 +5,23 @@
  * 数据源（可修改 SKILL_HOMES）：
  *   - ~/.dsh/skills/*          （DSH 用户技能）
  *   - ~/.agents/skills/*       （npx skills 全局技能，如 lark-* / gstack / wind-*）
+ *   - public/skills/<slug>/*   （仓库自带第三方技能，见 VENDORED_SKILLS）
  *
  * 输出：
  *   src/content/skills/<slug>.md  （frontmatter: title / description / tags / source，正文 = SKILL.md 内容）
+ *   public/skills/<slug>/**       （技能目录整体复制，供站点直接下载、安装提示词递归拉取）
  *
  * 用法：
  *   node scripts/sync-skills.mjs
  *   pnpm sync-skills
  *
- * 说明：脚本会清空 src/content/skills 目录后重新生成，保证与本地技能库同步；
- *       如需排除某些技能，把名字加进 EXCLUDE 集合即可。
+ * 说明：
+ *   1. 脚本会清空 src/content/skills 后重新生成，保证与本地技能库同步；
+ *      如需排除某些技能，把名字加进 EXCLUDE 集合即可。
+ *   2. 技能目录是**整体复制**的（多文件技能只有同级文件都在，装出来才是完整的）；
+ *      复制时按 DENY_FILE_PATTERNS / DENY_DIR_NAMES 跳过密钥、.env 等敏感文件并打印清单。
+ *   3. VENDORED_SKILLS 中的技能直接以 public/skills/<slug>/ 为唯一副本：同步时保留该目录，
+ *      只据此自动生成内容条目（用于收录第三方多文件技能）。
  */
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -23,7 +30,61 @@ import { basename, dirname, join, resolve } from "node:path";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = join(ROOT, "src", "content", "skills");
+const PUBLIC_SKILLS = join(ROOT, "public", "skills");
 const SKILL_HOMES = [join(homedir(), ".dsh", "skills"), join(homedir(), ".agents", "skills")];
+
+/**
+ * 仓库自带（第三方）技能：源文件直接放在 public/skills/<slug>/ 下，
+ * 那里既是站点静态资源（/skills/<slug>/**）也是唯一副本，因此同步时只保留、不复制，
+ * 内容条目由本脚本按其中的 SKILL.md 自动生成。键为 slug，值为展示配置。
+ */
+const VENDORED_SKILLS = {
+	"security-audit": {
+		tags: ["安全审计", "代码审计", "方法论"],
+		source: "cloudflare/security-audit-skill",
+	},
+};
+
+/** 复制技能目录时跳过的子目录（依赖、版本控制、缓存等，与技能无关） */
+const DENY_DIR_NAMES = new Set([".git", "node_modules", "__pycache__", ".venv", "venv", "dist", "build", ".cache"]);
+
+/** 复制技能目录时跳过敏感文件：dotfile（.env/.npmrc/.netrc…）、密钥证书、凭证类命名 */
+const DENY_FILE_PATTERNS = [
+	/^\./,
+	/\.env(\.|$)/i,
+	/\.(key|pem|p12|pfx|jks|keystore|ppk|crt|cer|der|asc)$/i,
+	/(^|[._-])id_(rsa|dsa|ecdsa|ed25519)([._-]|$)/i,
+	/(secret|credential|password|passwd|private[_-]?key|api[_-]?key|access[_-]?token|refresh[_-]?token)/i,
+];
+
+/** 判断相对路径是否属于「不应发布」的文件 */
+function isDenied(relPath) {
+	const name = basename(relPath);
+	return DENY_FILE_PATTERNS.some((re) => re.test(name));
+}
+
+/** 把技能目录整体复制到 public/skills/<slug>/，返回被跳过的敏感文件清单 */
+function copySkillDir(srcDir, destDir) {
+	const skipped = [];
+	const walk = (src, dest, rel) => {
+		mkdirSync(dest, { recursive: true });
+		for (const item of readdirSync(src, { withFileTypes: true })) {
+			const relPath = rel ? `${rel}/${item.name}` : item.name;
+			if (item.isDirectory()) {
+				if (DENY_DIR_NAMES.has(item.name)) continue;
+				walk(join(src, item.name), join(dest, item.name), relPath);
+			} else if (item.isFile()) {
+				if (isDenied(relPath)) {
+					skipped.push(relPath);
+					continue;
+				}
+				copyFileSync(join(src, item.name), join(dest, item.name));
+			}
+		}
+	};
+	walk(srcDir, destDir, "");
+	return skipped;
+}
 
 /** 私有辅助技能，不展示 */
 const EXCLUDE = new Set(["_gstack-command"]);
@@ -137,20 +198,53 @@ for (const home of SKILL_HOMES) {
 			SEMANTIC_TAGS[slug] && SEMANTIC_TAGS[slug].length > 0
 				? SEMANTIC_TAGS[slug]
 				: [homeLabel, familyTag(skillName)].filter(Boolean);
-		collected.set(slug, { title, description, tags, source: `${homeLabel}/${skillName}`, body, skillMd });
+		collected.set(slug, {
+			title,
+			description,
+			tags,
+			source: `${homeLabel}/${skillName}`,
+			body,
+			dir: join(home, skillName),
+		});
 	}
+}
+
+// ---------- 收集：仓库自带（第三方）技能 ----------
+for (const [slug, config] of Object.entries(VENDORED_SKILLS)) {
+	const dir = join(PUBLIC_SKILLS, slug);
+	const skillMd = join(dir, "SKILL.md");
+	if (!existsSync(skillMd)) {
+		console.warn(`⚠️  vendored 技能 ${slug} 缺少 ${skillMd}，已跳过`);
+		continue;
+	}
+
+	const raw = readFileSync(skillMd, "utf8");
+	const { data, body } = parseFrontmatter(raw);
+
+	collected.set(slug, {
+		title: config.title || data.name || firstHeading(body) || slug,
+		description: config.description || data.description || firstParagraph(body) || "",
+		tags: config.tags || SEMANTIC_TAGS[slug] || [],
+		source: config.source || `vendored/${slug}`,
+		body,
+		dir: null, // 文件已在 public/skills/<slug>/，无需复制
+	});
 }
 
 // ---------- 写入 ----------
 rmSync(OUT_DIR, { recursive: true, force: true });
 mkdirSync(OUT_DIR, { recursive: true });
 
-// 原始 SKILL.md 原样复制到 public/skills/<slug>/，随仓库提交到 GitHub，供访问者直接拉取
-const PUBLIC_SKILLS = join(ROOT, "public", "skills");
-rmSync(PUBLIC_SKILLS, { recursive: true, force: true });
+// 技能目录整体复制到 public/skills/<slug>/（随仓库提交，供访问者安装时递归拉取）；
+// 仓库自带技能原地保留，只清掉上一轮由本脚本生成的那些目录。
 mkdirSync(PUBLIC_SKILLS, { recursive: true });
+for (const item of readdirSync(PUBLIC_SKILLS, { withFileTypes: true })) {
+	if (VENDORED_SKILLS[item.name]) continue;
+	rmSync(join(PUBLIC_SKILLS, item.name), { recursive: true, force: true });
+}
 
 let count = 0;
+const skippedFiles = [];
 for (const [slug, entry] of [...collected.entries()].sort((a, b) => a[1].title.localeCompare(b[1].title, "zh"))) {
 	const frontmatter = [
 		"---",
@@ -164,10 +258,13 @@ for (const [slug, entry] of [...collected.entries()].sort((a, b) => a[1].title.l
 
 	writeFileSync(join(OUT_DIR, `${slug}.md`), `${frontmatter}${entry.body.replace(/^\n+/, "")}\n`, "utf8");
 
-	// 原始 SKILL.md（含原始 frontmatter，拿到即可用）
-	const publicDir = join(PUBLIC_SKILLS, slug);
-	mkdirSync(publicDir, { recursive: true });
-	copyFileSync(entry.skillMd, join(publicDir, "SKILL.md"));
+	// 原始技能文件（含原始 frontmatter，拿到即可用）整体复制；vendored 技能已在原地
+	if (entry.dir) {
+		const skipped = copySkillDir(entry.dir, join(PUBLIC_SKILLS, slug));
+		if (skipped.length > 0) {
+			skippedFiles.push(`${slug}: ${skipped.join(", ")}`);
+		}
+	}
 
 	count++;
 }
@@ -175,4 +272,9 @@ for (const [slug, entry] of [...collected.entries()].sort((a, b) => a[1].title.l
 console.log(`✅ 已同步 ${count} 个技能到 src/content/skills/`);
 for (const [slug, entry] of [...collected.entries()].sort((a, b) => a[1].title.localeCompare(b[1].title, "zh"))) {
 	console.log(`   - ${entry.title} (${entry.source})`);
+}
+
+if (skippedFiles.length > 0) {
+	console.warn(`\n⚠️  以下敏感/无关文件未发布（如属误判请调整 DENY_FILE_PATTERNS）：`);
+	for (const line of skippedFiles) console.warn(`   - ${line}`);
 }
