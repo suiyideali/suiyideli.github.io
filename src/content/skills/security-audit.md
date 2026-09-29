@@ -1,6 +1,6 @@
 ---
 title: "security-audit"
-description: "Security guidance and vulnerability review for codebases, APIs, services, CLI tools, libraries, and daemons. Use for security questions, focused reviews, vulnerability research, security audits, or pen tests. Run the complete workflow only for explicit codebase audit or pen-test requests, full/comprehensive/end-to-end reviews, or requested report artifacts."
+description: "面向代码库、API、服务、CLI 工具、库与常驻进程的安全指引与漏洞审查：适用于安全问答、定向审查、漏洞研究、安全审计与渗透测试；仅在明确要求审计或渗透测试代码库、需要全量或端到端评审、或要产出报告文件时才运行完整流程。（原文：Security guidance and vulnerability review for codebases, APIs, services, CLI tools, libraries, and daemons. Use for security questions, focused reviews, vulnerability research, security audits, or pen tests. Run the complete workflow only for explicit codebase audit or pen-test requests, full/comprehensive/end-to-end reviews, or requested report artifacts.）"
 tags: ["安全审计","代码审计","方法论"]
 source: "cloudflare/security-audit-skill"
 ---

@@ -18,7 +18,8 @@
  * 说明：
  *   1. 收录新技能的常规流程（第三方技能也一样）：先把技能装到本机技能库
  *      （如 ~/.dsh/skills/<name>/SKILL.md），再把名字加进 KEEP_ONLY，
- *      需要的话补 SEMANTIC_TAGS（标签）与 SOURCE_OVERRIDES（上游出处），最后跑本脚本。
+ *      需要的话补 SEMANTIC_TAGS（标签）、SOURCE_OVERRIDES（上游出处）、
+ *      DESCRIPTION_OVERRIDES（中文说明等展示用描述），最后跑本脚本。
  *   2. 脚本会清空 src/content/skills 后重新生成，保证与本地技能库同步；
  *      如需排除某些技能，把名字加进 EXCLUDE 集合即可。
  *   3. 技能目录是**整体复制**的（多文件技能只有同级文件都在，装出来才是完整的）；
@@ -27,7 +28,15 @@
  *      public/skills/<slug>/ 为唯一副本，同步时保留该目录并据此生成条目
  *      （与本机技能库同名时，以本机技能库为准）。
  */
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+	copyFileSync,
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -35,7 +44,10 @@ import { basename, dirname, join, resolve } from "node:path";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = join(ROOT, "src", "content", "skills");
 const PUBLIC_SKILLS = join(ROOT, "public", "skills");
-const SKILL_HOMES = [join(homedir(), ".dsh", "skills"), join(homedir(), ".agents", "skills")];
+const SKILL_HOMES = [
+	join(homedir(), ".dsh", "skills"),
+	join(homedir(), ".agents", "skills"),
+];
 
 /**
  * 仓库自带（第三方）技能：源文件直接放在 public/skills/<slug>/ 下，
@@ -50,7 +62,16 @@ const SKILL_HOMES = [join(homedir(), ".dsh", "skills"), join(homedir(), ".agents
 const VENDORED_SKILLS = {};
 
 /** 复制技能目录时跳过的子目录（依赖、版本控制、缓存等，与技能无关） */
-const DENY_DIR_NAMES = new Set([".git", "node_modules", "__pycache__", ".venv", "venv", "dist", "build", ".cache"]);
+const DENY_DIR_NAMES = new Set([
+	".git",
+	"node_modules",
+	"__pycache__",
+	".venv",
+	"venv",
+	"dist",
+	"build",
+	".cache",
+]);
 
 /** 复制技能目录时跳过敏感文件：dotfile（.env/.npmrc/.netrc…）、密钥证书、凭证类命名 */
 const DENY_FILE_PATTERNS = [
@@ -97,7 +118,13 @@ const EXCLUDE = new Set(["_gstack-command"]);
 const EXCLUDE_FAMILIES = new Set([]);
 
 /** 仅保留白名单：非空时只同步这些技能，其余全部跳过 */
-const KEEP_ONLY = new Set(["fact-check", "clarify-first", "first-principles", "issue-forms-kit", "security-audit"]);
+const KEEP_ONLY = new Set([
+	"fact-check",
+	"clarify-first",
+	"first-principles",
+	"issue-forms-kit",
+	"security-audit",
+]);
 
 /** 语义标签映射：slug -> 展示给访问者的分类标签（有映射时优先于来源/家族标签） */
 const SEMANTIC_TAGS = {
@@ -113,11 +140,22 @@ const SOURCE_OVERRIDES = {
 	"security-audit": "cloudflare/security-audit-skill",
 };
 
+/**
+ * 描述覆盖：条目描述（列表卡片 / 详情页 / 搜索索引 / meta description）。
+ * 用途是给第三方英文技能补一份中文说明并保留原文；**中文放最前面**——
+ * 列表卡片是 line-clamp-2 截断，英文在前会把中文整段截掉。
+ */
+const DESCRIPTION_OVERRIDES = {
+	"security-audit":
+		"面向代码库、API、服务、CLI 工具、库与常驻进程的安全指引与漏洞审查：适用于安全问答、定向审查、漏洞研究、安全审计与渗透测试；仅在明确要求审计或渗透测试代码库、需要全量或端到端评审、或要产出报告文件时才运行完整流程。（原文：Security guidance and vulnerability review for codebases, APIs, services, CLI tools, libraries, and daemons. Use for security questions, focused reviews, vulnerability research, security audits, or pen tests. Run the complete workflow only for explicit codebase audit or pen-test requests, full/comprehensive/end-to-end reviews, or requested report artifacts.）",
+};
+
 /** 家族标签：给技能打上可读分组 */
 function familyTag(name) {
 	if (name.startsWith("lark-")) return "lark";
 	if (name.startsWith("wind-")) return "wind";
-	if (name === "gstack" || name === "ego-browser" || name === "gstack-upgrade") return "gstack";
+	if (name === "gstack" || name === "ego-browser" || name === "gstack-upgrade")
+		return "gstack";
 	if (name === "agently-mail") return "agently";
 	return "";
 }
@@ -140,7 +178,10 @@ function parseFrontmatter(text) {
 		let val = m[2].trim();
 		if (val === "") continue;
 		// 去掉单双引号包裹
-		if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+		if (
+			(val.startsWith('"') && val.endsWith('"')) ||
+			(val.startsWith("'") && val.endsWith("'"))
+		) {
 			val = val.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
 		}
 		// 跳过列表/多行值（以 - 开头）
@@ -183,7 +224,8 @@ const collected = new Map(); // slug -> entry，先到先得（~/.dsh/skills 优
 
 for (const home of SKILL_HOMES) {
 	if (!existsSync(home)) continue;
-	const homeLabel = basename(home) === "skills" ? basename(dirname(home)) : basename(home);
+	const homeLabel =
+		basename(home) === "skills" ? basename(dirname(home)) : basename(home);
 
 	for (const dir of readdirSync(home, { withFileTypes: true })) {
 		if (!dir.isDirectory()) continue;
@@ -199,8 +241,12 @@ for (const home of SKILL_HOMES) {
 		const { data, body } = parseFrontmatter(raw);
 
 		const title = data.name || firstHeading(body) || skillName;
-		const description = data.description || firstParagraph(body) || "";
 		const slug = slugify(title);
+		const description =
+			DESCRIPTION_OVERRIDES[slug] ||
+			data.description ||
+			firstParagraph(body) ||
+			"";
 
 		if (collected.has(slug)) continue; // 去重
 
@@ -234,7 +280,12 @@ for (const [slug, config] of Object.entries(VENDORED_SKILLS)) {
 
 	collected.set(slug, {
 		title: config.title || data.name || firstHeading(body) || slug,
-		description: config.description || data.description || firstParagraph(body) || "",
+		description:
+			DESCRIPTION_OVERRIDES[slug] ||
+			config.description ||
+			data.description ||
+			firstParagraph(body) ||
+			"",
 		tags: config.tags || SEMANTIC_TAGS[slug] || [],
 		source: config.source || `vendored/${slug}`,
 		body,
@@ -256,7 +307,9 @@ for (const item of readdirSync(PUBLIC_SKILLS, { withFileTypes: true })) {
 
 let count = 0;
 const skippedFiles = [];
-for (const [slug, entry] of [...collected.entries()].sort((a, b) => a[1].title.localeCompare(b[1].title, "zh"))) {
+for (const [slug, entry] of [...collected.entries()].sort((a, b) =>
+	a[1].title.localeCompare(b[1].title, "zh"),
+)) {
 	const frontmatter = [
 		"---",
 		`title: ${yamlStr(entry.title)}`,
@@ -267,7 +320,11 @@ for (const [slug, entry] of [...collected.entries()].sort((a, b) => a[1].title.l
 		"",
 	].join("\n");
 
-	writeFileSync(join(OUT_DIR, `${slug}.md`), `${frontmatter}${entry.body.replace(/^\n+/, "")}\n`, "utf8");
+	writeFileSync(
+		join(OUT_DIR, `${slug}.md`),
+		`${frontmatter}${entry.body.replace(/^\n+/, "")}\n`,
+		"utf8",
+	);
 
 	// 原始技能文件（含原始 frontmatter，拿到即可用）整体复制；vendored 技能已在原地
 	if (entry.dir) {
@@ -281,11 +338,15 @@ for (const [slug, entry] of [...collected.entries()].sort((a, b) => a[1].title.l
 }
 
 console.log(`✅ 已同步 ${count} 个技能到 src/content/skills/`);
-for (const [slug, entry] of [...collected.entries()].sort((a, b) => a[1].title.localeCompare(b[1].title, "zh"))) {
+for (const [slug, entry] of [...collected.entries()].sort((a, b) =>
+	a[1].title.localeCompare(b[1].title, "zh"),
+)) {
 	console.log(`   - ${entry.title} (${entry.source})`);
 }
 
 if (skippedFiles.length > 0) {
-	console.warn(`\n⚠️  以下敏感/无关文件未发布（如属误判请调整 DENY_FILE_PATTERNS）：`);
+	console.warn(
+		`\n⚠️  以下敏感/无关文件未发布（如属误判请调整 DENY_FILE_PATTERNS）：`,
+	);
 	for (const line of skippedFiles) console.warn(`   - ${line}`);
 }
