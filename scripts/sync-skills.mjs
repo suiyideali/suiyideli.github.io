@@ -5,7 +5,7 @@
  * 数据源（可修改 SKILL_HOMES）：
  *   - ~/.dsh/skills/*          （DSH 用户技能）
  *   - ~/.agents/skills/*       （npx skills 全局技能，如 lark-* / gstack / wind-*）
- *   - public/skills/<slug>/*   （仓库自带第三方技能，见 VENDORED_SKILLS）
+ *   - public/skills/<slug>/*   （仓库自带技能副本，一般由本脚本生成；见 VENDORED_SKILLS）
  *
  * 输出：
  *   src/content/skills/<slug>.md  （frontmatter: title / description / tags / source，正文 = SKILL.md 内容）
@@ -16,12 +16,16 @@
  *   pnpm sync-skills
  *
  * 说明：
- *   1. 脚本会清空 src/content/skills 后重新生成，保证与本地技能库同步；
+ *   1. 收录新技能的常规流程（第三方技能也一样）：先把技能装到本机技能库
+ *      （如 ~/.dsh/skills/<name>/SKILL.md），再把名字加进 KEEP_ONLY，
+ *      需要的话补 SEMANTIC_TAGS（标签）与 SOURCE_OVERRIDES（上游出处），最后跑本脚本。
+ *   2. 脚本会清空 src/content/skills 后重新生成，保证与本地技能库同步；
  *      如需排除某些技能，把名字加进 EXCLUDE 集合即可。
- *   2. 技能目录是**整体复制**的（多文件技能只有同级文件都在，装出来才是完整的）；
+ *   3. 技能目录是**整体复制**的（多文件技能只有同级文件都在，装出来才是完整的）；
  *      复制时按 DENY_FILE_PATTERNS / DENY_DIR_NAMES 跳过密钥、.env 等敏感文件并打印清单。
- *   3. VENDORED_SKILLS 中的技能直接以 public/skills/<slug>/ 为唯一副本：同步时保留该目录，
- *      只据此自动生成内容条目（用于收录第三方多文件技能）。
+ *   4. VENDORED_SKILLS 仅供「不适合放进个人技能库」的仓库自带技能使用：以
+ *      public/skills/<slug>/ 为唯一副本，同步时保留该目录并据此生成条目
+ *      （与本机技能库同名时，以本机技能库为准）。
  */
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -36,14 +40,14 @@ const SKILL_HOMES = [join(homedir(), ".dsh", "skills"), join(homedir(), ".agents
 /**
  * 仓库自带（第三方）技能：源文件直接放在 public/skills/<slug>/ 下，
  * 那里既是站点静态资源（/skills/<slug>/**）也是唯一副本，因此同步时只保留、不复制，
- * 内容条目由本脚本按其中的 SKILL.md 自动生成。键为 slug，值为展示配置。
+ * 内容条目由本脚本按其中的 SKILL.md 自动生成。
+ *
+ * 一般**不需要**用它：第三方技能装到本机技能库（如 ~/.dsh/skills/<name>/）后加进
+ * KEEP_ONLY 即可，方向是「本机安装 → 同步发布」。只有确实不适合放进个人技能库的技能
+ * 才登记到这里，例如：
+ *   "some-skill": { tags: ["标签"], source: "owner/repo" },
  */
-const VENDORED_SKILLS = {
-	"security-audit": {
-		tags: ["安全审计", "代码审计", "方法论"],
-		source: "cloudflare/security-audit-skill",
-	},
-};
+const VENDORED_SKILLS = {};
 
 /** 复制技能目录时跳过的子目录（依赖、版本控制、缓存等，与技能无关） */
 const DENY_DIR_NAMES = new Set([".git", "node_modules", "__pycache__", ".venv", "venv", "dist", "build", ".cache"]);
@@ -93,7 +97,7 @@ const EXCLUDE = new Set(["_gstack-command"]);
 const EXCLUDE_FAMILIES = new Set([]);
 
 /** 仅保留白名单：非空时只同步这些技能，其余全部跳过 */
-const KEEP_ONLY = new Set(["fact-check", "clarify-first", "first-principles", "issue-forms-kit"]);
+const KEEP_ONLY = new Set(["fact-check", "clarify-first", "first-principles", "issue-forms-kit", "security-audit"]);
 
 /** 语义标签映射：slug -> 展示给访问者的分类标签（有映射时优先于来源/家族标签） */
 const SEMANTIC_TAGS = {
@@ -101,6 +105,12 @@ const SEMANTIC_TAGS = {
 	"fact-check": ["事实核查", "方法论", "联网核实"],
 	"first-principles": ["第一性原理", "思维模型", "方法论"],
 	"issue-forms-kit": ["GitHub 协作", "工程规范", "自动化"],
+	"security-audit": ["安全审计", "代码审计", "方法论"],
+};
+
+/** 来源覆盖：本机安装但来自第三方的技能，页面上注明上游出处（否则显示 .dsh/<name>） */
+const SOURCE_OVERRIDES = {
+	"security-audit": "cloudflare/security-audit-skill",
 };
 
 /** 家族标签：给技能打上可读分组 */
@@ -202,7 +212,7 @@ for (const home of SKILL_HOMES) {
 			title,
 			description,
 			tags,
-			source: `${homeLabel}/${skillName}`,
+			source: SOURCE_OVERRIDES[slug] || `${homeLabel}/${skillName}`,
 			body,
 			dir: join(home, skillName),
 		});
@@ -211,6 +221,7 @@ for (const home of SKILL_HOMES) {
 
 // ---------- 收集：仓库自带（第三方）技能 ----------
 for (const [slug, config] of Object.entries(VENDORED_SKILLS)) {
+	if (collected.has(slug)) continue; // 本机技能库优先，避免两处定义互相覆盖
 	const dir = join(PUBLIC_SKILLS, slug);
 	const skillMd = join(dir, "SKILL.md");
 	if (!existsSync(skillMd)) {
